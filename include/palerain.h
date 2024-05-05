@@ -2,11 +2,11 @@
 #define PALERAIN_H
 
 #if defined(__APPLE__)
-#define NSIG	__DARWIN_NSIG
+#define _DARWIN_C_SOURCE 1
 #endif
 
 #include "xxd-embedded.h"
-#include "paleinfo.h"
+#include "kerninfo.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -24,9 +24,6 @@
 
 #define palerain_option_case_version      palerain_option_case(0)
 #define palerain_option_case_force_revert palerain_option_case(1)
-#define palerain_option_case_libcheckra1nhelper_path palerain_option_case(2)
-#define palerain_option_case_cli		  palerain_option_case(3)
-
 
 #ifdef USE_LIBUSB
 #include <libusb-1.0/libusb.h>
@@ -35,7 +32,7 @@
 #define USB_RET_NOT_RESPONDING  LIBUSB_ERROR_OTHER
 #define USB_RET_IO              LIBUSB_ERROR_IO
 #define USB_RET_NO_DEVICE		LIBUSB_ERROR_NO_DEVICE
-typedef int32_t usb_ret_t;
+typedef int usb_ret_t;
 typedef libusb_device_handle *usb_device_handle_t;
 
 typedef struct stuff
@@ -72,7 +69,7 @@ usb_ret_t USBBulkUpload(usb_device_handle_t handle, void *data, uint32_t len);
 #endif
 
 #ifndef PALERAIN_VERSION
-#define PALERAIN_VERSION "2.0"
+#define PALERAIN_VERSION "2.0.0"
 #endif
 
 #if defined(__APPLE__)
@@ -83,8 +80,8 @@ usb_ret_t USBBulkUpload(usb_device_handle_t handle, void *data, uint32_t len);
 #define MH_CIGAM_64 0xcffaedfe
 #define MH_KEXT_BUNDLE 0xb
 
-typedef int32_t cpu_type_t;
-typedef int32_t cpu_subtype_t;
+typedef int cpu_type_t;
+typedef int cpu_subtype_t;
 
 #define CPU_ARCH_ABI64          0x01000000
 #define CPU_TYPE_ARM            ((cpu_type_t) 12)
@@ -102,8 +99,6 @@ struct mach_header_64
 	uint32_t reserved;		  /* reserved */
 };
 #endif
-
-typedef void *(*pthread_start_t)(void *);
 
 // Keep in sync with Pongo
 #define PONGO_USB_VENDOR    0x05ac
@@ -134,7 +129,7 @@ typedef struct {
 
 typedef struct {
 	int mode;
-	int cpid;
+	unsigned int cpid;
 	char product_type[0x20];
 	char display_name[0x20];
 	char iboot_ver[0x20];
@@ -143,9 +138,9 @@ typedef struct {
 typedef struct {
 	uint32_t magic; /* 0xd803b376*/
 	unsigned char* ptr; /* pointer to the override file in memory */
-	uint32_t len; /* length of override file */
+	unsigned int len; /* length of override file */
 	unsigned char* orig_ptr; /* pointer to the overriden file */
-	uint32_t orig_len; /* length of the overriden file */
+	unsigned int orig_len; /* length of the overriden file */
 	int fd; /* file descriptor of the override file */
 } override_file_t;
 
@@ -154,12 +149,12 @@ typedef unsigned char niarelap_file_t[];
 extern unsigned int verbose;
 
 extern char* pongo_path;
-#ifdef TUI
+#ifdef DEV_BUILD
 extern bool tui_started;
 #endif
 
-extern uint64_t palerain_flags;
-extern uint64_t* palerain_flags_p;
+extern checkrain_option_t host_flags;
+extern checkrain_option_p host_flags_p;
 
 extern pthread_t dfuhelper_thread, pongo_thread;
 extern int pongo_thr_running, dfuhelper_thr_running;
@@ -168,7 +163,7 @@ extern niarelap_file_t *kpf_to_upload_1, *ramdisk_to_upload_1, *overlay_to_uploa
 extern niarelap_file_t **kpf_to_upload, **ramdisk_to_upload, **overlay_to_upload;
 extern override_file_t override_ramdisk, override_kpf, override_overlay;
 
-extern uint64_t palerain_flags;
+extern uint32_t checkrain_flags, palerain_flags, kpf_flags;
 extern pthread_mutex_t log_mutex;
 
 extern pthread_mutex_t spin_mutex, found_pongo_mutex, ecid_dfu_wait_mutex;
@@ -176,7 +171,11 @@ extern pthread_mutex_t spin_mutex, found_pongo_mutex, ecid_dfu_wait_mutex;
 extern int pongo_thr_running, dfuhelper_thr_running;
 extern bool device_has_booted;
 extern char xargs_cmd[0x270];
-extern char palerain_flags_cmd[0x30];
+extern char checkrain_flags_cmd[0x20];
+extern char palerain_flags_cmd[0x20];
+extern char kpf_flags_cmd[0x20];
+extern char dtpatch_cmd[0x20];
+extern char rootfs_cmd[512];
 extern char* ext_checkra1n;
 
 void thr_cleanup(void* ptr);
@@ -204,7 +203,7 @@ boyermoore_horspool_memmem(const unsigned char* haystack, size_t hlen,
                            const unsigned char* needle,   size_t nlen);
 
 
-extern void* pongo_usb_callback(stuff_t* arg);
+extern void* pongo_usb_callback(void* arg);
 usb_ret_t USBControlTransfer(usb_device_handle_t handle, uint8_t bmRequestType, uint8_t bRequest, uint16_t wValue, uint16_t wIndex, uint32_t wLength, void *data, uint32_t *wLenDone);
 const char *usb_strerror(usb_ret_t err);
 int wait_for_pongo(void);
@@ -227,4 +226,9 @@ void io_stop(stuff_t *stuff);
 
 void print_credits(void);
 
+#ifdef DEV_BUILD
+#include <newt.h>
+newtComponent get_tui_log();
+newtComponent set_tui_log(newtComponent co);
+#endif
 #endif
